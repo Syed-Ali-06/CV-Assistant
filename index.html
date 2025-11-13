@@ -1,36 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Free AI CV Feedback</title>
   <style>
-    body { font-family: sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; }
-    textarea { width: 100%; height: 200px; margin-top: 10px; }
-    button { padding: 10px 20px; margin-top: 10px; }
-    pre { background: #f4f4f4; padding: 15px; border-radius: 8px; white-space: pre-wrap; }
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; }
+    textarea { width: 100%; height: 180px; margin-top: 10px; }
+    input[type=file] { margin: 10px 0; }
+    button { padding: 10px 20px; margin-top: 10px; cursor: pointer; }
+    pre { background: #f7f7f7; padding: 15px; border-radius: 8px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
   <h1>Free AI CV Feedback</h1>
-  <p>Paste your CV text below:</p>
-  <textarea id="cv"></textarea><br>
-  <button id="analyze">Get Feedback</button>
+
+  <p>Upload your CV file (.txt, .pdf, .docx) or paste the text below:</p>
+  <input type="file" id="fileInput" accept=".txt,.pdf,.docx">
+  <textarea id="cvText" placeholder="Paste your CV text here..."></textarea><br>
+  <button id="analyzeBtn">Get Feedback</button>
 
   <h3>Feedback:</h3>
   <pre id="output">No feedback yet.</pre>
 
   <script>
-    document.getElementById('analyze').onclick = async () => {
-      const cv = document.getElementById('cv').value.trim();
-      if (!cv) return alert('Please paste your CV first.');
+    async function readFileContent(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'txt') return await file.text();
 
-      const res = await fetch('/api/hf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: cv })
-      });
-      const data = await res.json();
-      document.getElementById('output').textContent = data.feedback || data.error || JSON.stringify(data, null, 2);
+      // For PDF/DOCX — use browser-based extraction fallback
+      if (ext === 'pdf' || ext === 'docx') {
+        alert('PDF and DOCX uploads require a text version for now — please copy/paste the text manually.');
+        return '';
+      }
+      return '';
+    }
+
+    document.getElementById('analyzeBtn').onclick = async () => {
+      const fileInput = document.getElementById('fileInput');
+      let text = document.getElementById('cvText').value.trim();
+
+      if (fileInput.files.length > 0) {
+        text = await readFileContent(fileInput.files[0]);
+      }
+
+      if (!text) return alert('Please upload or paste your CV first.');
+
+      document.getElementById('output').textContent = 'Analysing... ⏳';
+
+      try {
+        const res = await fetch('/api/hf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        document.getElementById('output').textContent = data.feedback || data.error || JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById('output').textContent = 'Error: ' + err.message;
+      }
     };
   </script>
 </body>
